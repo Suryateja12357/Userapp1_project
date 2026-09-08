@@ -1,0 +1,5 @@
+POSTGRES_DB_PSWD="root"
+POSTGRES_DB_URL="localhost"
+POSTGRES_DB_USERNAME="postgres"
+POSTGRES_DB_NAME="postgres"
+DB_TYPE="postgresql"
