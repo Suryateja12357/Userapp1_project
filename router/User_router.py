@@ -7,11 +7,13 @@ from models.User_model import User
 from passlib.context import CryptContext
 from auth.User_auth import get_current_user,admin_authorization
 from auth.User_auth import create_access_token
+from fastapi.security import OAuth2PasswordBearer
 
 pwd_context=CryptContext(
     schemes=["bcrypt"],
     deprecated="auto"
 )
+oauth2_scheme=OAuth2PasswordBearer(tokenUrl="/user/login")
 
 router=APIRouter()
 

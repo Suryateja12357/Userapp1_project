@@ -2,7 +2,6 @@ from pydantic import BaseModel
 from datetime import datetime
 from decimal import Decimal  
 class OrderRequest(BaseModel):
-    user_id:int
     order_date:datetime
     total_amount:Decimal
     payment_status:str
