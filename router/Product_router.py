@@ -6,7 +6,6 @@ from utilities.database import SessionLocal
 from sqlalchemy.orm import Session
 from models.Product_model import Product
 from Validation.Product_validation import ProductRequest
-from auth.User_auth import create_access_token
 
 router=APIRouter()
 
@@ -29,8 +28,7 @@ async def read_product(db:db_dependency,product_id:int=Path(gt=0)):
         product_model=db.query(Product).filter(Product.id==product_id).first()
         if product_model is None:
             raise HTTPException(status_code=404,detail="product is not found")
-        token=create_access_token(data={"sub":product_model.id})
-        return{"access_token":token,"token_type":"bearer","product_model":product_model}
+        return product_model
     except Exception as e:
         raise HTTPException(status_code=500,detail=str(e))
 
@@ -40,8 +38,7 @@ async def create_product(db:db_dependency,product_request:ProductRequest):
         product_model=Product(**product_request.dict())
         db.add(product_model)
         db.commit()
-        token=create_access_token(data={"sub":product_model.id})
-        return{"access_token":token,"token_type":"bearer","product_model":product_model}
+        return product_model
     except Exception as e:
         raise HTTPException(status_code=500,detail=str(e))
 
@@ -62,8 +59,7 @@ async def update_product(db:db_dependency,product_id:int,product_request:Product
         product_model.updated_at=product_request.updated_at
         db.add(product_model)
         db.commit()
-        token=create_access_token(data={"sub":product_model.id})
-        return{"access_token":token,"token_type":"bearer","product_model":product_model}
+        return product_model
     except Exception as e:
         raise HTTPException(status_code=500,detail=str(e))
 
@@ -75,7 +71,5 @@ async def delete_product(db:db_dependency,product_id:int):
             raise HTTPException(status_code=404,detail="product is not found")
         db.query(Product).filter(Product.id==product_id).delete()
         db.commit()
-        token=create_access_token(data={"sub":product_model.id})
-        return{"access_token":token,"token_type":"bearer"}
     except Exception as e:
         raise HTTPException(status_code=500,detail=str(e))

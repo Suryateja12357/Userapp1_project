@@ -4,7 +4,6 @@ from typing import Annotated
 from starlette import status
 from sqlalchemy.orm import Session
 from utilities.database import SessionLocal
-from auth.User_auth import create_access_token
 from auth.User_auth import get_current_user
 from models.Order_model import Order
 from models.User_model import User
@@ -23,15 +22,20 @@ user_dependency=Annotated[User,Depends(get_current_user)]
 
 @router.get("/order/",status_code=status.HTTP_200_OK)
 async def read_all(db:db_dependency,user:user_dependency):
-    return db.query(Order).all()
+    return db.query(Order).filter(Order.user_id==user.id).all()
 
 @router.get("/order/{order_id}",status_code=status.HTTP_200_OK)
 async def read_order(db:db_dependency,user:user_dependency,order_id:int=Path(gt=0)):
-    order_model=db.query(Order).filter(Order.id==order_id).first()
-    if order_model is None:
-        raise HTTPException(status_code=404,detail="order is not found")
-    token=create_access_token(data={"sub":order_model.user_id})
-    return{"access_token":token,"token_type":"bearer","order_model":order_model}
+    try:
+        order_model=db.query(Order).filter(Order.id==order_id,
+                                           Order.user_id==user.id).first()
+        if order_model is None:
+            raise HTTPException(status_code=404,detail="order is not found")
+        return{"order_model":order_model}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500,detail=str(e))
 
 @router.post("/order/",status_code=status.HTTP_201_CREATED)
 async def create_order(db:db_dependency,order_request:OrderRequest,user:user_dependency):
@@ -46,18 +50,17 @@ async def create_order(db:db_dependency,order_request:OrderRequest,user:user_dep
                           updated_at=order_request.updated_at)
         db.add(order_model)
         db.commit()
-        token=create_access_token(data={"sub":order_model.user_id})
-        return {"access_token":token,"token_type":"bearer"}
+        return {"message":"Order created successfully","order_model":order_model}
     except Exception as e:
         raise HTTPException(status_code=500,detail=str(e))
 
 @router.put("/order/{order_id}",status_code=status.HTTP_204_NO_CONTENT)
 async def update_order(db:db_dependency,order_id:int,order_request:OrderRequest,user:user_dependency):
     try:
-        order_model=db.query(Order).filter(Order.id==order_id).first()
+        order_model=db.query(Order).filter(Order.id==order_id,
+                                           Order.user_id==user.id).first()
         if order_model is None:
             raise HTTPException(status_code=404,detail="order is not found")
-        order_model.user_id=order_request.user_id
         order_model.order_date=order_request.order_date
         order_model.total_amount=order_request.total_amount
         order_model.payment_status=order_request.payment_status
@@ -70,18 +73,20 @@ async def update_order(db:db_dependency,order_id:int,order_request:OrderRequest,
         order_model.updated_at=order_request.updated_at
         db.add(order_model)
         db.commit()
-        token=create_access_token(data={"sub":order_model.user_id})
-        return{"access_token":token,"token_type":"bearer","order_model":order_model}
+        return{"order_model":order_model}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500,detail=str(e))
 
 @router.delete("/order/{order_id}",status_code=status.HTTP_204_NO_CONTENT)
 async def delete_order(db:db_dependency,order_id:int,user:user_dependency):
     try:
-        order_model=db.query(Order).filter(order_id==Order.id).first()
+        order_model=db.query(Order).filter(Order.id==order_id,
+                                           Order.user_id==user.id).first()
         if order_model is None:
             raise HTTPException(status_code=404,detail="order is not found")
-        db.query(Order).filter(Order.id==order_id).delete()
+        db.query(Order).filter(order_id==Order.id).delete()
         db.commit()
     except Exception as e:
         raise HTTPException(status_code=500,detail=str(e))

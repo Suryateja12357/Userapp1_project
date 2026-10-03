@@ -8,9 +8,8 @@ from models.Orderitems_model import Orderitems
 from Validation.Orderitems_validation import OrderitemRequest
 from models.User_model import User
 from models.Order_model import Order
+from models.Product_model import Product
 from auth.User_auth import get_current_user
-from auth.User_auth import create_access_token
-from auth.User_auth import OAuth2PasswordBearer
 router=APIRouter()
 
 def get_db():
@@ -25,16 +24,15 @@ user_dependency=Annotated[User,Depends(get_current_user)]
 
 @router.get("/orderitems",status_code=status.HTTP_200_OK)
 async def read_all(db:db_dependency,user:user_dependency):
-    return db.query(Orderitems).all()
+    return(db.query(Orderitems).join(Order,Orderitems.order_id==Order.id).filter(Order.user_id==user.id).all())
 
 @router.get("/orderitems/{orderitem_id}",status_code=status.HTTP_200_OK)
 async def read_orderitems(db:db_dependency,user:user_dependency,orderitem_id:int=Path(gt=0)):
     try:
-        orderitem_model=db.query(Orderitems).filter(Orderitems.id==Order.id).filter(Orderitems.     id==orderitem_id).first()
+        orderitem_model=db.query(Orderitems).join(Order,Orderitems.id==Order.id).filter(Orderitems. id==orderitem_id,Order.user_id==user.id).first()
         if orderitem_model is None:
             raise HTTPException(status_code=404,detail="orderitem is not found")
-        token=create_access_token(data={"sub":orderitem_model.id})
-        return {"access_token":token,"token_type":"bearer"}
+        return orderitem_model
     except HTTPException:
         raise
     except Exception as e:
@@ -44,21 +42,28 @@ async def read_orderitems(db:db_dependency,user:user_dependency,orderitem_id:int
 @router.post("/orderitems",status_code=status.HTTP_201_CREATED)
 async def create_orderitems(db:db_dependency,orderitem_request:OrderitemRequest,user:user_dependency):
     try:
-        orderitem_model=Orderitems(order_id=orderitem_request.order_id,
-                                   product_id=orderitem_request.product_id,
+        order_model=db.query(Order).filter(Order.id==orderitem_request.order_id,
+                                           Order.user_id==user.id).first()
+        if order_model is None:
+            raise HTTPException(status_code=404,detail="Order not found")
+        product_model=db.query(Product).filter(Product.id==orderitem_request.product_id).first()
+        if product_model is None:
+            raise HTTPException(status_code=404,detail="Product not found")
+        if order_model.order_status=="cancelled":
+            raise HTTPException(status_code=400,detail="Cannot add items to a cancelled order")
+        orderitem_model=Orderitems(order_id=order_model.id,
+                                   product_id=product_model.id,
                                    quantity=orderitem_request.quantity,
-                                   price=orderitem_request.price)
+                                   price=product_model.price)
         db.add(orderitem_model)
         db.commit()
-        token=create_access_token(data={"sub":orderitem_model.id})
-        return {"access_token":token,"token_type":"bearer","orderitem":orderitem_model}
     except Exception as e:
         raise HTTPException(status_code=500,detail=str(e))
 
 @router.put("/orderitems/{orderitem_id}",status_code=status.HTTP_204_NO_CONTENT)
 async def update_orderitems(db:db_dependency,orderitem_id:int,orderitem_request:OrderitemRequest,user:user_dependency):
     try:
-        orderitem_model=db.query(Orderitems).filter(Orderitems.id==orderitem_id).first()
+        orderitem_model=db.query(Orderitems).join(Order,Orderitems.id==Order.id).filter(Orderitems.id==orderitem_id,Order.user_id==user.id).first()
         if orderitem_model is None:
             raise HTTPException(status_code=404,detail="orderitem is not found")
         orderitem_model.order_id=orderitem_request.order_id
@@ -69,8 +74,7 @@ async def update_orderitems(db:db_dependency,orderitem_id:int,orderitem_request:
         orderitem_model.updated_at=orderitem_request.updated_at
         db.add(orderitem_model)
         db.commit()
-        token=create_access_token(data={"sub":orderitem_model.id})
-        return {"access_token":token,"token_type":"bearer","orderitem":orderitem_model}
+        return {"orderitem":orderitem_model}
     except Exception as e:
         raise HTTPException(status_code=500,detail=str(e))
 
@@ -83,7 +87,7 @@ async def delete_orderitems(db:db_dependency,orderitem_id:int,user:user_dependen
         order_model=db.query(Order).filter(Order.id==orderitem_model.order_id).first()
         if order_model is None:
             raise HTTPException(status_code=404,detail="order is not found")
-        if order_model.user_id!=user["id"]:
+        if order_model.user_id!=user.id:
             raise HTTPException(status_code=403,detail="You are not authorized to delete this order item")
         db.query(Orderitems).filter(orderitem_id==Orderitems.id).delete()
         db.commit()
