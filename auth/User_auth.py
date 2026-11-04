@@ -1,5 +1,5 @@
 from fastapi import APIRouter,HTTPException
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer,OAuth2PasswordRequestForm
 from fastapi import Depends
 from typing import Annotated
 from auth.User_verification import send_verification_email
@@ -18,7 +18,10 @@ from auth.User_otp import generate_otp
 from passlib.context import CryptContext
 from jose import jwt,JWTError
 from datetime import datetime,timedelta,timezone
-router=APIRouter()
+router=APIRouter(
+    prefix="/auth",
+    tags=["Auth"]
+)
 
 oauth2_scheme=OAuth2PasswordBearer(
     tokenUrl="/user/login"
@@ -33,6 +36,7 @@ def get_db():
         db.close()
 
 db_dependency=Annotated[Session,Depends(get_db)]
+
 
 pwd_context=CryptContext(
     schemes=["bcrypt"],
@@ -59,7 +63,7 @@ def create_access_token(data:dict):
     expire=datetime.now(timezone.utc)+timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp":expire})
     return jwt.encode(to_encode,SECRET_KEY,algorithm=ALGORITHM)
-    
+
 
 def verify_token(token:str):
     try:
@@ -100,6 +104,7 @@ def signup(user_validation:UserValidation,db:db_dependency):
     db.commit()
     token=create_access_token(data={"sub":new_user.email})
     send_verification_email(new_user.email,token)
+    return {"message":"User registered successfully. Please verify your email"}
 
 @router.post("/resetpassword")
 def resetpassword(request:ResetPasswordRequest,db:db_dependency):

@@ -2,7 +2,7 @@ from utilities.database import Base
 from sqlalchemy import Column,String,Integer,Boolean,DateTime
 from datetime import datetime
 class User(Base):
-    __tablename__="users_7"
+    __tablename__="users"
     id=Column(Integer,primary_key=True,index=True)
     user_name=Column(String)
     email=Column(String)
@@ -12,5 +12,6 @@ class User(Base):
     is_active=Column(Boolean,default=True)
     role=Column(String)
     is_verified=Column(Boolean,default=False)
+    otp=Column(String)
     created_at=Column(DateTime,default=datetime.utcnow)
     updated_at=Column(DateTime,default=datetime.utcnow,onupdate=datetime.utcnow)

@@ -2,9 +2,9 @@ from utilities.database import Base
 from sqlalchemy import Column,String,Integer,DateTime,Text,ForeignKey,Numeric
 from datetime import datetime
 class Order(Base):
-    __tablename__="orders_1"
+    __tablename__="orders"
     id=Column(Integer,primary_key=True,index=True)
-    user_id=Column(Integer,ForeignKey("users_7.id"))
+    user_id=Column(Integer,ForeignKey("users.id"))
     order_date=Column(DateTime,default=datetime.utcnow)
     total_amount=Column(Numeric)
     payment_status=Column(String,default="pending")

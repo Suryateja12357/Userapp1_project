@@ -8,7 +8,10 @@ from auth.User_auth import get_current_user
 from models.Order_model import Order
 from models.User_model import User
 from Validation.Order_validation import OrderRequest
-router=APIRouter()
+router=APIRouter(
+    prefix="/order",
+    tags=["Order"]
+)
 
 def get_db():
     db=SessionLocal()
@@ -20,11 +23,16 @@ def get_db():
 db_dependency=Annotated[Session,Depends(get_db)]
 user_dependency=Annotated[User,Depends(get_current_user)]
 
-@router.get("/order/",status_code=status.HTTP_200_OK)
+@router.get("/",status_code=status.HTTP_200_OK)
 async def read_all(db:db_dependency,user:user_dependency):
-    return db.query(Order).filter(Order.user_id==user.id).all()
+    try:
+        return db.query(Order).filter(Order.user_id==user.id).all()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500,detail=str(e))
 
-@router.get("/order/{order_id}",status_code=status.HTTP_200_OK)
+@router.get("/{order_id}",status_code=status.HTTP_200_OK)
 async def read_order(db:db_dependency,user:user_dependency,order_id:int=Path(gt=0)):
     try:
         order_model=db.query(Order).filter(Order.id==order_id,
@@ -37,7 +45,7 @@ async def read_order(db:db_dependency,user:user_dependency,order_id:int=Path(gt=
     except Exception as e:
         raise HTTPException(status_code=500,detail=str(e))
 
-@router.post("/order/",status_code=status.HTTP_201_CREATED)
+@router.post("/",status_code=status.HTTP_201_CREATED)
 async def create_order(db:db_dependency,order_request:OrderRequest,user:user_dependency):
     try:
         order_model=Order(user_id=user.id,
@@ -54,7 +62,7 @@ async def create_order(db:db_dependency,order_request:OrderRequest,user:user_dep
     except Exception as e:
         raise HTTPException(status_code=500,detail=str(e))
 
-@router.put("/order/{order_id}",status_code=status.HTTP_204_NO_CONTENT)
+@router.put("/{order_id}",status_code=status.HTTP_204_NO_CONTENT)
 async def update_order(db:db_dependency,order_id:int,order_request:OrderRequest,user:user_dependency):
     try:
         order_model=db.query(Order).filter(Order.id==order_id,
@@ -79,7 +87,7 @@ async def update_order(db:db_dependency,order_id:int,order_request:OrderRequest,
     except Exception as e:
         raise HTTPException(status_code=500,detail=str(e))
 
-@router.delete("/order/{order_id}",status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{order_id}",status_code=status.HTTP_204_NO_CONTENT)
 async def delete_order(db:db_dependency,order_id:int,user:user_dependency):
     try:
         order_model=db.query(Order).filter(Order.id==order_id,
@@ -88,5 +96,7 @@ async def delete_order(db:db_dependency,order_id:int,user:user_dependency):
             raise HTTPException(status_code=404,detail="order is not found")
         db.query(Order).filter(order_id==Order.id).delete()
         db.commit()
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500,detail=str(e))

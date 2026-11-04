@@ -7,7 +7,10 @@ from sqlalchemy.orm import Session
 from models.Product_model import Product
 from Validation.Product_validation import ProductRequest
 
-router=APIRouter()
+router=APIRouter(
+    prefix="/product",
+    tags=["Product"]
+)
 
 def get_db():
     db=SessionLocal()
@@ -18,36 +21,41 @@ def get_db():
 
 db_dependency=Annotated[Session,Depends(get_db)]
 
-@router.get("/products/",status_code=status.HTTP_200_OK)
+@router.get("/",status_code=status.HTTP_200_OK)
 async def read_all(db:db_dependency):
-    return db.query(Product).all()
+    try:
+        return db.query(Product).all()
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,detail="Internal server error")
 
-@router.get("/products/{product_id}",status_code=status.HTTP_200_OK)
+@router.get("/{product_id}",status_code=status.HTTP_200_OK)
 async def read_product(db:db_dependency,product_id:int=Path(gt=0)):
     try:
         product_model=db.query(Product).filter(Product.id==product_id).first()
         if product_model is None:
-            raise HTTPException(status_code=404,detail="product is not found")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="product is not found")
         return product_model
-    except Exception as e:
-        raise HTTPException(status_code=500,detail=str(e))
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,detail="Internal server error")
 
-@router.post("/product/",status_code=status.HTTP_201_CREATED)
+@router.post("/",status_code=status.HTTP_201_CREATED)
 async def create_product(db:db_dependency,product_request:ProductRequest):
     try:
         product_model=Product(**product_request.dict())
         db.add(product_model)
         db.commit()
-        return product_model
-    except Exception as e:
-        raise HTTPException(status_code=500,detail=str(e))
+        return {"message":"product created successfully","product_model":product_model}
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,detail="Internal server error")
 
-@router.put("/product/{product_id}",status_code=status.HTTP_204_NO_CONTENT)
+@router.put("/{product_id}",status_code=status.HTTP_204_NO_CONTENT)
 async def update_product(db:db_dependency,product_id:int,product_request:ProductRequest):
     try:
         product_model=db.query(Product).filter(Product.id==product_id).first()
         if product_model is None:
-            raise HTTPException(status_code=404,detail="product is not found")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="product is not found")
         product_model.name=product_request.name
         product_model.description=product_request.description
         product_model.price=product_request.price
@@ -60,16 +68,20 @@ async def update_product(db:db_dependency,product_id:int,product_request:Product
         db.add(product_model)
         db.commit()
         return product_model
-    except Exception as e:
-        raise HTTPException(status_code=500,detail=str(e))
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,detail="Internal server error")
 
-@router.delete("/product/{product_id}",status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{product_id}",status_code=status.HTTP_204_NO_CONTENT)
 async def delete_product(db:db_dependency,product_id:int):
     try:
-        product_model=db.query(Product).filter(product_id==Product.id).first()
+        product_model=db.query(Product).filter(Product.id==product_id).first()
         if product_model is None:
-            raise HTTPException(status_code=404,detail="product is not found")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="product is not found")
         db.query(Product).filter(Product.id==product_id).delete()
         db.commit()
-    except Exception as e:
-        raise HTTPException(status_code=500,detail=str(e))
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,detail="Internal server error")

@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from decimal import Decimal
 from datetime import datetime
-class OrderitemRequest(BaseModel):
+class OrderItemRequest(BaseModel):
     order_id:int
     product_id:int
     quantity:int
